@@ -1,0 +1,4 @@
+duckdb==1.2.1
+pandas==2.2.3
+notebook==7.3.2
+ipykernel==6.29.5
