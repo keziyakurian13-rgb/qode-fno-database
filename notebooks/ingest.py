@@ -45,7 +45,7 @@ conn.execute("""
     (3, 'MCX')
 """)
 count = conn.execute("SELECT COUNT(*) FROM exchanges").fetchone()[0]
-print(f"   ✅ {count} exchanges inserted (NSE, BSE, MCX)\n")
+print(f"    {count} exchanges inserted (NSE, BSE, MCX)\n")
 
 # ══════════════════════════════════════════════════════════════════════════
 # STEP 2: Insert instruments (unique SYMBOL + INSTRUMENT_TYPE combos)
@@ -73,7 +73,7 @@ conn.executemany(
     unique_instruments[['instrument_id', 'SYMBOL', 'INSTRUMENT', 'exchange_id']].values.tolist()
 )
 count = conn.execute("SELECT COUNT(*) FROM instruments").fetchone()[0]
-print(f"   ✅ {count} instruments inserted")
+print(f"    {count} instruments inserted")
 mcx_count = conn.execute("SELECT COUNT(*) FROM instruments WHERE exchange_id = 3").fetchone()[0]
 print(f"   → {mcx_count} tagged as MCX (HINDZINC, NATIONALUM)\n")
 
@@ -100,7 +100,7 @@ conn.executemany(
     unique_expiries[['expiry_id', 'EXPIRY_DT', 'STRIKE_PR', 'OPTION_TYP']].values.tolist()
 )
 count = conn.execute("SELECT COUNT(*) FROM expiries").fetchone()[0]
-print(f"   ✅ {count:,} expiries inserted\n")
+print(f"    {count:,} expiries inserted\n")
 
 # ══════════════════════════════════════════════════════════════════════════
 # STEP 4: Insert trades (all 2.5M rows with proper IDs)
@@ -158,7 +158,7 @@ trades_df['timestamp'] = pd.to_datetime(
 conn.execute("INSERT INTO trades SELECT * FROM trades_df")
 
 count = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
-print(f"   ✅ {count:,} trade rows inserted\n")
+print(f"    {count:,} trade rows inserted\n")
 
 # ── Final summary ──────────────────────────────────────────────────────────
 print("=" * 50)
@@ -168,4 +168,4 @@ for table in ['exchanges', 'instruments', 'expiries', 'trades']:
     print(f"   {table:15} → {n:>10,} rows")
 
 conn.close()
-print("\n✅ All done! fno_database.db is ready for queries.")
+print("\n All done! fno_database.db is ready for queries.")

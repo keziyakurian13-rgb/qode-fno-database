@@ -13,7 +13,7 @@
 --          Across Exchanges
 -- ============================================================
 -- Purpose: Rank symbols by total change in open interest.
--- Shows which contracts had the biggest OI movement — a key
+-- Shows which contracts had the biggest OI movement - a key
 -- metric for understanding market activity and sentiment.
 -- ============================================================
 
@@ -30,7 +30,7 @@ GROUP BY i.symbol, e.exchange_name, i.instrument_type
 ORDER BY ABS(SUM(t.chg_in_oi)) DESC
 LIMIT 10;
 
-/* SAMPLE OUTPUT (full dataset — 2,533,210 rows):
+/* SAMPLE OUTPUT (full dataset - 2,533,210 rows):
     symbol  exchange  instrument_type  total_oi_change  absolute_oi_movement
       IDEA   NSE       OPTSTK           729,134,000      1,485,134,000
       IDEA   NSE       FUTSTK           614,530,000      3,353,826,000
@@ -43,7 +43,7 @@ LIMIT 10;
 IDFCFIRSTB   NSE       FUTSTK           120,864,000      1,177,200,000
    YESBANK   NSE       FUTSTK           116,514,200      1,103,205,400
 
-Insight: IDEA and YESBANK dominate OI movement — both were in financial
+Insight: IDEA and YESBANK dominate OI movement - both were in financial
 distress in Aug-Oct 2019, causing massive speculative positioning.
 */
 
@@ -54,7 +54,7 @@ distress in Aug-Oct 2019, causing massive speculative positioning.
 -- ============================================================
 -- Purpose: Calculate rolling 7-day volatility for NIFTY.
 -- Standard deviation of close prices shows how much prices
--- fluctuate — a core metric for options pricing and risk.
+-- fluctuate - a core metric for options pricing and risk.
 -- Uses window functions (ROWS BETWEEN) for rolling calculation.
 -- ============================================================
 
@@ -76,7 +76,7 @@ WHERE i.symbol = 'NIFTY'
 ORDER BY t.timestamp
 LIMIT 100;
 
-/* SAMPLE OUTPUT (NIFTY futures — first 10 rows):
+/* SAMPLE OUTPUT (NIFTY futures - first 10 rows):
   timestamp  symbol     close   rolling_7day_stddev
  2019-08-01  NIFTY   11015.35   NULL   (first row, no prior window)
  2019-08-01  NIFTY   11101.60   43.38
@@ -97,7 +97,7 @@ from US-China trade war news and Budget disappointment.
 --          Avg settle_pr: MCX instruments vs NSE Index Futures
 -- ============================================================
 -- Purpose: Compare average settlement prices across exchanges.
--- MCX instruments (HINDZINC, NATIONALUM — commodity metal proxies)
+-- MCX instruments (HINDZINC, NATIONALUM - commodity metal proxies)
 -- vs NSE equity index futures (NIFTY, BANKNIFTY, NIFTYIT).
 -- Note: Dataset is NSE-only. Metal stocks tagged as MCX proxies
 -- to demonstrate cross-exchange schema capability as per assignment.
@@ -130,7 +130,7 @@ ORDER BY e.exchange_name;
     NSE     FUTIDX           3               621   18,593.02        10711.3  31315.70
 
 Insight: NSE index futures avg ~₹18,593 (NIFTY level) vs MCX metal
-proxies at ~₹78. Cross-exchange price scale difference is expected —
+proxies at ~₹78. Cross-exchange price scale difference is expected -
 demonstrates schema successfully queries across exchange boundaries.
 */
 
@@ -138,7 +138,7 @@ demonstrates schema successfully queries across exchange boundaries.
 -- ============================================================
 -- QUERY 4: Option Chain Summary
 --          Grouped by expiry_date and strike_price
---          for NIFTY — calculating implied volume
+--          for NIFTY - calculating implied volume
 -- ============================================================
 -- Purpose: Summarise the full option chain for NIFTY.
 -- Groups CE and PE contracts by expiry and strike to show
@@ -164,7 +164,7 @@ GROUP BY ex.expiry_date, ex.strike_price, ex.option_type
 ORDER BY ex.expiry_date, ex.strike_price, ex.option_type
 LIMIT 100;
 
-/* SAMPLE OUTPUT (NIFTY option chain — first 8 rows):
+/* SAMPLE OUTPUT (NIFTY option chain - first 8 rows):
   expiry_date  strike  type  days  total_volume  total_oi   avg_close
   2019-08-01   9600.0  CE    1          0        0.0        1514.65
   2019-08-01   9600.0  PE    1         10      750.0           0.10
@@ -176,7 +176,7 @@ LIMIT 100;
   2019-08-01   9750.0  PE    1          0      450.0           0.10
 
 Insight: Deep ITM calls (e.g., 9600 CE near NIFTY at 11000) show high
-prices but zero volume — typical option chain behaviour at expiry.
+prices but zero volume - typical option chain behaviour at expiry.
 */
 
 
@@ -185,7 +185,7 @@ prices but zero volume — typical option chain behaviour at expiry.
 --          Using Window Functions / Index-Optimised
 -- ============================================================
 -- Purpose: Find the highest single-day contract volume seen
--- in the past 30 days for each symbol — a peak activity metric.
+-- in the past 30 days for each symbol - a peak activity metric.
 -- Uses a window function for the rolling max calculation.
 -- Performance: Optimised by the idx_trades_timestamp index.
 -- ============================================================
@@ -222,6 +222,85 @@ LIMIT 200;
   ACC       2019-08-06     2100         2100               100.00
   ACC       2019-08-07     1600         2100                76.19
 
-Insight: pct_of_30day_peak = 100% flags new monthly highs — useful
+Insight: pct_of_30day_peak = 100% flags new monthly highs - useful
 for identifying unusual activity spikes in derivatives positions.
+*/
+
+-- ============================================================
+-- QUERY 6: Put-Call Ratio (PCR) by Expiry for NIFTY
+--          Advanced Market Sentiment Indicator
+-- ============================================================
+-- Purpose: Calculate the Put-Call Open Interest Ratio (PCR) for 
+-- each expiry date. PCR is a core sentiment indicator.
+-- PCR > 1 typically implies bearish/oversold sentiment.
+-- PCR < 1 typically implies bullish/overbought sentiment.
+-- Uses conditional aggregation (CASE WHEN) inside SUM().
+-- ============================================================
+
+SELECT
+    ex.expiry_date,
+    SUM(CASE WHEN ex.option_type = 'PE' THEN t.open_int ELSE 0 END) AS total_pe_oi,
+    SUM(CASE WHEN ex.option_type = 'CE' THEN t.open_int ELSE 0 END) AS total_ce_oi,
+    ROUND(
+        SUM(CASE WHEN ex.option_type = 'PE' THEN t.open_int ELSE 0 END) * 1.0 /
+        NULLIF(SUM(CASE WHEN ex.option_type = 'CE' THEN t.open_int ELSE 0 END), 0),
+    2) AS put_call_ratio
+FROM trades t
+JOIN instruments i ON t.instrument_id = i.instrument_id
+JOIN expiries ex ON t.expiry_id = ex.expiry_id
+WHERE i.symbol = 'NIFTY'
+GROUP BY ex.expiry_date
+HAVING SUM(CASE WHEN ex.option_type = 'CE' THEN t.open_int ELSE 0 END) > 0
+ORDER BY ex.expiry_date
+LIMIT 10;
+
+/* SAMPLE OUTPUT (first 5 NIFTY expiries):
+  expiry_date  total_pe_oi  total_ce_oi  put_call_ratio
+   2019-08-01    5776425.0   22918950.0            0.25  (Highly Bullish)
+   2019-08-08   70318200.0   90534750.0            0.78
+   2019-08-14   44776575.0   63680025.0            0.70
+   2019-08-22   53350725.0   90467550.0            0.59
+   2019-08-29  464375550.0  449848575.0            1.03  (Bearish/Neutral)
+
+Insight: Monthly expiries (like 29-Aug) have dramatically higher OI than
+weekly expiries. The shift from 0.25 to 1.03 reflects the market pricing 
+in higher risks (buying puts) as the August crash deepened.
+*/
+
+
+-- ============================================================
+-- QUERY 7: Highest Liquidity Options Strikes (Rollover/Trading)
+--          Finding the active ATM strikes before expiry
+-- ============================================================
+-- Purpose: Identify where the actual trading volume is concentrated
+-- the day before the monthly expiry.
+-- This shows At-The-Money (ATM) strikes where liquidity pools exist.
+-- ============================================================
+
+SELECT
+    t.timestamp,
+    ex.strike_price,
+    ex.option_type,
+    t.contracts AS daily_volume,
+    t.val_inlakh AS turnover_lakhs
+FROM trades t
+JOIN instruments i ON t.instrument_id = i.instrument_id
+JOIN expiries ex ON t.expiry_id = ex.expiry_id
+WHERE i.symbol = 'NIFTY'
+  AND t.timestamp = '2019-08-28' -- Day before August monthly expiry
+  AND ex.expiry_date = '2019-08-29'
+ORDER BY t.contracts DESC
+LIMIT 5;
+
+/* SAMPLE OUTPUT:
+  timestamp   strike_price option_type  daily_volume  turnover_lakhs
+  2019-08-28       11100.0          CE        707,906      5,909,317.71
+  2019-08-28       11000.0          PE        697,664      5,773,703.06
+  2019-08-28       11200.0          CE        508,751      4,277,211.31
+  2019-08-28       10900.0          PE        419,738      3,435,310.21
+  2019-08-28       11000.0          CE        385,886      3,203,898.21
+
+Insight: On Aug 28, NIFTY was trading around 11050. The exact ATM strikes
+(11100 CE and 11000 PE) saw highest volume (700k+ contracts each).
+This proves the schema successfully isolates micro-level market microstructure.
 */

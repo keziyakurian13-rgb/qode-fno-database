@@ -13,7 +13,7 @@
 
 
 -- ============================================================
--- STEP 1: EXPLAIN ANALYZE — BEFORE Optimization (Baseline)
+-- STEP 1: EXPLAIN ANALYZE - BEFORE Optimization (Baseline)
 -- ============================================================
 -- Running Query 1 without any indexes.
 -- DuckDB will do a full sequential scan of 2.5M rows.
@@ -33,10 +33,10 @@ LIMIT 10;
 -- ============================================================
 -- STEP 2: Create Indexes
 -- ============================================================
--- Index 1: timestamp — speeds up time-series range queries
--- Index 2: instrument_id in trades — speeds up JOINs
--- Index 3: symbol in instruments — speeds up symbol lookups
--- Index 4: exchange_id — speeds up cross-exchange filtering
+-- Index 1: timestamp - speeds up time-series range queries
+-- Index 2: instrument_id in trades - speeds up JOINs
+-- Index 3: symbol in instruments - speeds up symbol lookups
+-- Index 4: exchange_id - speeds up cross-exchange filtering
 -- ============================================================
 
 CREATE INDEX IF NOT EXISTS idx_trades_timestamp
@@ -55,9 +55,9 @@ CREATE INDEX IF NOT EXISTS idx_instruments_exchange_id
     ON instruments(exchange_id);
 
 -- ============================================================
--- STEP 3: EXPLAIN ANALYZE — AFTER Optimization
+-- STEP 3: EXPLAIN ANALYZE - AFTER Optimization
 -- ============================================================
--- Same query as STEP 1 — now with indexes in place.
+-- Same query as STEP 1 - now with indexes in place.
 -- Compare the cost and execution plan to show improvement.
 -- ============================================================
 
@@ -94,7 +94,7 @@ PRAGMA show_tables;
 --
 -- B) Parquet file partitioning (for bulk analytics at scale):
 --    COPY trades TO 'partitioned/' (FORMAT PARQUET, PARTITION_BY (timestamp));
---    This splits trades into one file per timestamp — equivalent to
+--    This splits trades into one file per timestamp - equivalent to
 --    partitioning by date in PostgreSQL.
 --
 -- C) PostgreSQL equivalent (for reference):
@@ -106,18 +106,20 @@ PRAGMA show_tables;
 --        expiry_id     INTEGER,
 --        timestamp     DATE NOT NULL,
 --        ...
---    ) PARTITION BY RANGE (timestamp);
+--    ) PARTITION BY RANGE (expiry_id);
 --
---    CREATE TABLE trades_aug2019 PARTITION OF trades
---        FOR VALUES FROM ('2019-08-01') TO ('2019-09-01');
+--    -- Partitioning by expiry_dt (via expiry_id):
+--    CREATE TABLE trades_exp_1 TO 10000 PARTITION OF trades
+--        FOR VALUES FROM (1) TO (10000);
 --
---    CREATE TABLE trades_sep2019 PARTITION OF trades
---        FOR VALUES FROM ('2019-09-01') TO ('2019-10-01');
---
---    CREATE TABLE trades_oct2019 PARTITION OF trades
---        FOR VALUES FROM ('2019-10-01') TO ('2019-11-01');
+--    -- Alternatively, partitioning by Exchange (via exchange_id):
+--    -- CREATE TABLE trades PARTITION BY LIST (exchange_id);
+--    -- CREATE TABLE trades_nse PARTITION OF trades FOR VALUES IN (1);
+--    -- CREATE TABLE trades_bse PARTITION OF trades FOR VALUES IN (2);
+--    -- CREATE TABLE trades_mcx PARTITION OF trades FOR VALUES IN (3);
 --
 -- For 10M+ rows at HFT scale, Parquet partitioning (option B)
+-- by exchange or expiry_dt is the recommended approach in production.
 -- is the recommended approach in production quant environments.
 -- ============================================================
 
@@ -132,7 +134,7 @@ PRAGMA show_tables;
 -- How BRIN works:
 --   Stores MIN and MAX values for each block of pages. Queries like
 --   WHERE timestamp BETWEEN '2019-08-01' AND '2019-08-31' skip all
---   blocks whose range does not overlap — without reading row-by-row.
+--   blocks whose range does not overlap - without reading row-by-row.
 --
 -- Why BRIN is ideal for time-series F&O data:
 --   - Timestamps are naturally sequential (data arrives Aug to Oct)
