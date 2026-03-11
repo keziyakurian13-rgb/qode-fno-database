@@ -77,3 +77,47 @@ LIMIT 10;
 -- ============================================================
 
 PRAGMA show_tables;
+
+
+-- ============================================================
+-- STEP 5: Partitioning Strategy
+-- ============================================================
+-- NOTE: DuckDB (.db single-file mode) does not support
+-- PostgreSQL-style declarative table partitioning
+-- (CREATE TABLE trades PARTITION BY RANGE(timestamp)).
+--
+-- DuckDB EQUIVALENT approaches used here:
+--
+-- A) Index-based partitioning (implemented above):
+--    idx_trades_timestamp  → enables partition pruning on date ranges
+--    idx_trades_expiry_id  → enables partition pruning on expiry
+--
+-- B) Parquet file partitioning (for bulk analytics at scale):
+--    COPY trades TO 'partitioned/' (FORMAT PARQUET, PARTITION_BY (timestamp));
+--    This splits trades into one file per timestamp — equivalent to
+--    partitioning by date in PostgreSQL.
+--
+-- C) PostgreSQL equivalent (for reference):
+--    If PostgreSQL were used instead of DuckDB, partitioning would be:
+--
+--    CREATE TABLE trades (
+--        trade_id      INTEGER,
+--        instrument_id INTEGER,
+--        expiry_id     INTEGER,
+--        timestamp     DATE NOT NULL,
+--        ...
+--    ) PARTITION BY RANGE (timestamp);
+--
+--    CREATE TABLE trades_aug2019 PARTITION OF trades
+--        FOR VALUES FROM ('2019-08-01') TO ('2019-09-01');
+--
+--    CREATE TABLE trades_sep2019 PARTITION OF trades
+--        FOR VALUES FROM ('2019-09-01') TO ('2019-10-01');
+--
+--    CREATE TABLE trades_oct2019 PARTITION OF trades
+--        FOR VALUES FROM ('2019-10-01') TO ('2019-11-01');
+--
+-- For 10M+ rows at HFT scale, Parquet partitioning (option B)
+-- is the recommended approach in production quant environments.
+-- ============================================================
+
