@@ -1,0 +1,14 @@
+# Large data files — not committed to GitHub
+3mfanddo.csv
+nse-future-and-options-dataset-3m.zip
+fno_database.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS
+.DS_Store
