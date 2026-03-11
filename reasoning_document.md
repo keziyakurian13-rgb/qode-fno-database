@@ -14,7 +14,40 @@ The assignment asked me to design a **relational database**, which means reorgan
 
 ---
 
-## 2. Exploring the Dataset
+## 2. Setting Up — Installing Kaggle and Downloading the Dataset
+
+Before touching any data, I had to get it. The dataset was hosted on Kaggle, so the first step was setting up the Kaggle CLI.
+
+```bash
+pip install kaggle
+```
+
+Then I needed an API key. I went to [kaggle.com/settings](https://www.kaggle.com/settings), created a new API token named `Qode_Assignment`, and configured my credentials:
+
+```bash
+mkdir -p ~/.kaggle
+echo '{"username":"christykurian","key":"<api_key>"}' > ~/.kaggle/kaggle.json
+chmod 600 ~/.kaggle/kaggle.json
+```
+
+Then downloaded the dataset directly into the repo folder:
+
+```bash
+kaggle datasets download -d sunnysai12345/nse-future-and-options-dataset-3m \
+    --path ~/Desktop/qode-fno-database --force
+```
+
+After downloading, I unzipped it:
+
+```bash
+unzip nse-future-and-options-dataset-3m.zip
+```
+
+This produced a single file: **`3mfanddo.csv`** — that was the original filename from Kaggle, not renamed by me. The file was ~34MB compressed and contained 2,533,210 rows.
+
+---
+
+## 3. Exploring the Dataset
 
 The first thing I did was load the CSV and inspect it:
 
@@ -38,7 +71,7 @@ print(df.head())             # first 5 rows
 
 ---
 
-## 3. Deciding the Schema — Why 4 Tables?
+## 4. Deciding the Schema — Why 4 Tables?
 
 My next challenge was: *which columns go into which table?*
 
@@ -57,7 +90,7 @@ This maps perfectly to the 4 tables the assignment asked for. Each table stores 
 
 ---
 
-## 4. Why 3NF Over Star Schema?
+## 5. Why 3NF Over Star Schema?
 
 The assignment specifically asked me to explain normalization choices and why star schema was avoided. Here is my reasoning:
 
@@ -72,7 +105,7 @@ A **star schema** denormalizes dimension data back into the fact table (trades).
 
 ---
 
-## 5. Writing the DDL
+## 6. Writing the DDL
 
 Once the design was clear, I wrote the CREATE TABLE statements in `schema/ddl.sql`. The order matters: you must create referenced tables before referencing tables.
 
@@ -94,7 +127,7 @@ I then wrote `schema/setup_db.py` to connect to DuckDB, read the SQL file, strip
 
 ---
 
-## 6. Data Ingestion — The Hard Part
+## 7. Data Ingestion — The Hard Part
 
 Ingestion is where theory meets reality. The challenge: the CSV is one flat table, but the database needs 4 linked tables with integer IDs that don't exist in the CSV.
 
@@ -118,7 +151,7 @@ trades       →  2,533,210 rows
 
 ---
 
-## 7. SQL Queries — What I Wrote and Why
+## 8. SQL Queries — What I Wrote and Why
 
 All 5 queries are in `queries/analysis.sql`.
 
@@ -134,7 +167,7 @@ All 5 queries are in `queries/analysis.sql`.
 
 ---
 
-## 8. Optimization — Indexes and Partitioning
+## 9. Optimization — Indexes and Partitioning
 
 I created 5 indexes targeting the most frequent query patterns:
 
@@ -158,7 +191,7 @@ DuckDB reads partitioned Parquet natively with automatic partition elimination. 
 
 ---
 
-## 9. Results Summary
+## 10. Results Summary
 
 | Component | Outcome |
 |---|---|
